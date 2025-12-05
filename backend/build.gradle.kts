@@ -65,6 +65,9 @@ dependencies {
     // SpringDoc OpenAPI (Swagger)
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
 
+    // Environment Variables
+    implementation("me.paulschwarz:spring-dotenv:4.0.0")
+
     // Lombok
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")

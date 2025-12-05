@@ -1,27 +1,20 @@
--- 1. provider 컬럼 추가
-ALTER TABLE users
-ADD COLUMN provider VARCHAR(20) NOT NULL DEFAULT 'LOCAL' COMMENT '로그인 제공자: LOCAL, GOOGLE, KAKAO';
+-- Social Login Support
+-- provider와 provider_id 컬럼은 이미 추가되어 있음
+-- email unique 인덱스는 이미 제거됨
 
--- 2. provider_id 컬럼 추가
-ALTER TABLE users
-ADD COLUMN provider_id VARCHAR(255) NULL COMMENT '소셜 로그인 제공자의 사용자 ID';
-
--- 3. password를 nullable로 변경
+-- 1. password를 nullable로 변경 (소셜 로그인은 비밀번호 없음)
 ALTER TABLE users
 MODIFY COLUMN password VARCHAR(255) NULL COMMENT 'BCrypt 해시 비밀번호 (소셜 로그인 시 NULL)';
 
--- 4. 기존 unique 제약조건 삭제 및 복합 unique 제약조건 추가 (email + provider)
-ALTER TABLE users
-DROP INDEX IF EXISTS uk_email;
-
+-- 2. email + provider 복합 unique 제약조건 추가
 ALTER TABLE users
 ADD CONSTRAINT uk_users_email_provider UNIQUE (email, provider);
 
--- 5. provider_id에 인덱스 추가 (소셜 로그인 조회 최적화)
+-- 3. provider_id에 인덱스 추가 (소셜 로그인 조회 최적화)
 CREATE INDEX idx_users_provider_id ON users(provider, provider_id);
 
--- 6. login_histories 테이블 생성
-CREATE TABLE login_histories (
+-- 4. login_histories 테이블 생성
+CREATE TABLE IF NOT EXISTS login_histories (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
     login_at DATETIME NOT NULL,
@@ -36,8 +29,8 @@ CREATE TABLE login_histories (
     INDEX idx_user_id_login_at (user_id, login_at DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 7. notifications 테이블 생성
-CREATE TABLE notifications (
+-- 5. notifications 테이블 생성
+CREATE TABLE IF NOT EXISTS notifications (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
     subscription_id BIGINT,
@@ -55,8 +48,8 @@ CREATE TABLE notifications (
     INDEX idx_status_created_at (status, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 8. notification_settings 테이블 생성
-CREATE TABLE notification_settings (
+-- 6. notification_settings 테이블 생성
+CREATE TABLE IF NOT EXISTS notification_settings (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id BIGINT NOT NULL UNIQUE,
     email_enabled BOOLEAN NOT NULL DEFAULT TRUE,

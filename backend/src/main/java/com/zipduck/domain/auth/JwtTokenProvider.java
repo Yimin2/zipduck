@@ -22,8 +22,8 @@ public class JwtTokenProvider {
     private final long accessTokenExpiration;
 
     public JwtTokenProvider(
-            @Value("${jwt.secret}") String secret,
-            @Value("${jwt.access-token-expiration}") long accessTokenExpiration
+            @Value("${app.jwt.secret}") String secret,
+            @Value("${app.jwt.expiration}") long accessTokenExpiration
     ) {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.accessTokenExpiration = accessTokenExpiration;
