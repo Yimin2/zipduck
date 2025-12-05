@@ -1,0 +1,25 @@
+# 로컬 개발 환경 설정
+# .env 파일의 환경 변수를 자동으로 로드합니다 (spring-dotenv 사용)
+# 로컬 환경에 특화된 설정만 오버라이드합니다
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate  # Flyway로 마이그레이션 관리
+    show-sql: ${SPRING_JPA_SHOW_SQL:true}
+    properties:
+      hibernate:
+        format_sql: ${SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL:true}
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+  # 로컬 환경 로깅 설정
+  devtools:
+    restart:
+      enabled: ${SPRING_DEVTOOLS_RESTART_ENABLED:true}
+
+logging:
+  level:
+    com.zipduck: ${LOG_LEVEL:DEBUG}
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

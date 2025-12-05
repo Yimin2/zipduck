@@ -5,7 +5,18 @@
       "Bash(find:*)",
       "Bash(./gradlew clean build:*)",
       "Bash(.specify/scripts/bash/check-prerequisites.sh:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(.specify/scripts/bash/create-new-feature.sh:*)",
+      "Bash(file:*)",
+      "Bash(.specify/scripts/bash/setup-plan.sh:*)",
+      "WebSearch",
+      "WebFetch(domain:spring.io)",
+      "WebFetch(domain:www.unlogged.io)",
+      "WebFetch(domain:www.baeldung.com)",
+      "Bash(./gradlew build:*)",
+      "Bash(./gradlew compileJava:*)",
+      "Bash(./gradlew bootRun:*)",
+      "Bash(docker exec:*)"
     ],
     "deny": [],
     "ask": []

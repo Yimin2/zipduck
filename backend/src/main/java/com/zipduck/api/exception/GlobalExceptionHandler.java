@@ -149,6 +149,63 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle invalid credentials exception
+     */
+    @ExceptionHandler(InvalidCredentialsException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentials(
+        InvalidCredentialsException ex
+    ) {
+        ErrorResponse errorResponse = new ErrorResponse(
+            "AUTH_001",
+            ex.getMessage(),
+            LocalDateTime.now(),
+            null
+        );
+
+        log.warn("Invalid credentials: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+    }
+
+    /**
+     * Handle account locked exception
+     */
+    @ExceptionHandler(AccountLockedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ResponseEntity<ErrorResponse> handleAccountLocked(
+        AccountLockedException ex
+    ) {
+        ErrorResponse errorResponse = new ErrorResponse(
+            "AUTH_002",
+            ex.getMessage(),
+            LocalDateTime.now(),
+            null
+        );
+
+        log.warn("Account locked: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+    }
+
+    /**
+     * Handle token expired exception
+     */
+    @ExceptionHandler(TokenExpiredException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ResponseEntity<ErrorResponse> handleTokenExpired(
+        TokenExpiredException ex
+    ) {
+        ErrorResponse errorResponse = new ErrorResponse(
+            "AUTH_003",
+            ex.getMessage(),
+            LocalDateTime.now(),
+            null
+        );
+
+        log.warn("Token expired: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+    }
+
+    /**
      * Handle all other exceptions
      */
     @ExceptionHandler(Exception.class)

@@ -19,4 +19,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.profile WHERE u.id = :id")
     Optional<User> findByIdWithProfile(@Param("id") Long id);
+
+    // 소셜 로그인 지원 메서드
+    Optional<User> findByEmailAndProvider(String email, AuthProvider provider);
+
+    boolean existsByEmailAndProvider(String email, AuthProvider provider);
+
+    Optional<User> findByProviderAndProviderId(AuthProvider provider, String providerId);
 }

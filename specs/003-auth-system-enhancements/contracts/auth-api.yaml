@@ -1,0 +1,348 @@
+openapi: 3.0.3
+info:
+  title: ZipDuck Authentication API
+  description: 회원가입, 로그인, 로그아웃, 토큰 갱신 API
+  version: 1.0.0
+  contact:
+    name: ZipDuck Team
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+  - url: https://api.zipduck.com/api/v1
+    description: Production
+
+tags:
+  - name: Authentication
+    description: 인증 관련 API
+
+paths:
+  /auth/signup:
+    post:
+      tags:
+        - Authentication
+      summary: 회원가입
+      description: 이메일과 비밀번호로 신규 계정 생성
+      operationId: signup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+            examples:
+              valid:
+                summary: 유효한 회원가입 요청
+                value:
+                  email: user@example.com
+                  password: SecurePass123!
+                  username: 홍길동
+      responses:
+        '201':
+          description: 회원가입 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: 잘못된 요청 (유효성 검증 실패)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidEmail:
+                  summary: 이메일 형식 오류
+                  value:
+                    error:
+                      code: INVALID_EMAIL
+                      message: 올바른 이메일 형식이 아닙니다
+                weakPassword:
+                  summary: 약한 비밀번호
+                  value:
+                    error:
+                      code: WEAK_PASSWORD
+                      message: 비밀번호는 8자 이상이며 영문, 숫자, 특수문자를 포함해야 합니다
+        '409':
+          description: 이메일 중복
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: EMAIL_ALREADY_EXISTS
+                  message: 이미 사용 중인 이메일입니다
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: 로그인
+      description: 이메일과 비밀번호로 로그인하여 JWT 토큰 발급
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: user@example.com
+              password: SecurePass123!
+      responses:
+        '200':
+          description: 로그인 성공
+          headers:
+            Set-Cookie:
+              description: Refresh Token (HttpOnly Cookie)
+              schema:
+                type: string
+                example: refreshToken=abc123...; HttpOnly; Secure; SameSite=Strict; Max-Age=604800
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidCredentials:
+                  summary: 이메일 또는 비밀번호 오류
+                  value:
+                    error:
+                      code: INVALID_CREDENTIALS
+                      message: 이메일 또는 비밀번호가 올바르지 않습니다
+                accountLocked:
+                  summary: 계정 잠김
+                  value:
+                    error:
+                      code: ACCOUNT_LOCKED
+                      message: 비밀번호를 5회 이상 틀렸습니다. 30분 후 다시 시도하거나 비밀번호 찾기를 이용하세요
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: 로그아웃
+      description: 현재 Refresh Token 무효화
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: 로그아웃 성공
+        '401':
+          description: 인증되지 않음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: 토큰 갱신
+      description: Refresh Token으로 새로운 Access Token 발급
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: 토큰 갱신 성공
+          headers:
+            Set-Cookie:
+              description: 새로운 Refresh Token (Rotation)
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Refresh Token 무효 또는 만료
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidToken:
+                  summary: 유효하지 않은 토큰
+                  value:
+                    error:
+                      code: INVALID_REFRESH_TOKEN
+                      message: 유효하지 않은 Refresh Token입니다
+                tokenReused:
+                  summary: 토큰 재사용 감지
+                  value:
+                    error:
+                      code: TOKEN_REUSE_DETECTED
+                      message: 보안을 위해 모든 세션이 종료되었습니다. 다시 로그인하세요
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: 현재 사용자 정보 조회
+      description: Access Token으로 현재 로그인한 사용자 정보 조회
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: 인증되지 않음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Access Token (Header에 `Authorization: Bearer {token}` 형식)
+
+  schemas:
+    SignupRequest:
+      type: object
+      required:
+        - email
+        - password
+        - username
+      properties:
+        email:
+          type: string
+          format: email
+          description: 이메일 주소
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: 비밀번호 (8자 이상, 영문+숫자+특수문자 포함)
+          example: SecurePass123!
+        username:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: 사용자 이름
+          example: 홍길동
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          example: SecurePass123!
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          description: Refresh Token (Cookie에서도 전송 가능)
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: Access Token (1시간 유효)
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        tokenType:
+          type: string
+          enum: [Bearer]
+          example: Bearer
+        expiresIn:
+          type: integer
+          description: Access Token 만료 시간 (초 단위)
+          example: 3600
+        user:
+          $ref: '#/components/schemas/UserResponse'
+
+    TokenResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        tokenType:
+          type: string
+          enum: [Bearer]
+          example: Bearer
+        expiresIn:
+          type: integer
+          example: 3600
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        username:
+          type: string
+          example: 홍길동
+        provider:
+          type: string
+          enum: [LOCAL, GOOGLE, KAKAO]
+          example: LOCAL
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, SUSPENDED]
+          example: ACTIVE
+        createdAt:
+          type: string
+          format: date-time
+          example: 2025-11-26T10:00:00Z
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: 에러 코드
+              example: INVALID_CREDENTIALS
+            message:
+              type: string
+              description: 사용자 친화적 에러 메시지
+              example: 이메일 또는 비밀번호가 올바르지 않습니다
+            details:
+              type: object
+              additionalProperties: true
+              description: 추가 에러 상세 정보 (선택적)

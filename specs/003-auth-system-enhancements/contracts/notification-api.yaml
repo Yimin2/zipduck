@@ -1,0 +1,177 @@
+openapi: 3.0.3
+info:
+  title: ZipDuck Notification API
+  description: 알림 설정 및 조회 API
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+  - url: https://api.zipduck.com/api/v1
+    description: Production
+
+tags:
+  - name: Notifications
+    description: 알림 관리
+
+paths:
+  /notifications/settings:
+    get:
+      tags:
+        - Notifications
+      summary: 알림 설정 조회
+      description: 현재 사용자의 알림 수신 설정 조회
+      operationId: getNotificationSettings
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettingResponse'
+        '401':
+          description: 인증되지 않음
+
+    put:
+      tags:
+        - Notifications
+      summary: 알림 설정 변경
+      description: 알림 수신 방법 및 타입별 활성화/비활성화
+      operationId: updateNotificationSettings
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSettingRequest'
+      responses:
+        '200':
+          description: 설정 변경 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettingResponse'
+        '401':
+          description: 인증되지 않음
+
+  /notifications:
+    get:
+      tags:
+        - Notifications
+      summary: 알림 이력 조회
+      description: 사용자가 받은 알림 이력 조회 (페이징)
+      operationId: getNotifications
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, SENT, FAILED]
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    NotificationSettingRequest:
+      type: object
+      properties:
+        emailEnabled:
+          type: boolean
+          description: 이메일 알림 활성화
+          example: true
+        pushEnabled:
+          type: boolean
+          description: 푸시 알림 활성화 (향후 지원)
+          example: false
+        newSubscriptionEnabled:
+          type: boolean
+          description: 신규 청약 알림
+          example: true
+        expiringSubscriptionEnabled:
+          type: boolean
+          description: 마감 임박 알림
+          example: true
+
+    NotificationSettingResponse:
+      type: object
+      properties:
+        emailEnabled:
+          type: boolean
+        pushEnabled:
+          type: boolean
+        newSubscriptionEnabled:
+          type: boolean
+        expiringSubscriptionEnabled:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+
+    NotificationResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum: [NEW_SUBSCRIPTION, EXPIRING_SUBSCRIPTION]
+        title:
+          type: string
+        content:
+          type: string
+        method:
+          type: string
+          enum: [EMAIL, PUSH]
+        status:
+          type: string
+          enum: [PENDING, SENT, FAILED]
+        sentAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    NotificationListResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer

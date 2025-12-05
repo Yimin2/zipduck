@@ -29,6 +29,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
+    implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
+    implementation("org.springframework.boot:spring-boot-starter-mail")
 
     // WebFlux for WebClient (External API calls)
     implementation("org.springframework.boot:spring-boot-starter-webflux")
@@ -49,6 +52,9 @@ dependencies {
     implementation("com.google.cloud:google-cloud-vision:3.31.0")
     implementation("com.google.cloud:google-cloud-vertexai:1.1.0")
 
+    // AWS SES (Email Service)
+    implementation("com.amazonaws:aws-java-sdk-ses:1.12.565")
+
     // Resilience4j for Circuit Breaker
     implementation("io.github.resilience4j:resilience4j-spring-boot3:2.1.0")
 
@@ -59,6 +65,9 @@ dependencies {
     // SpringDoc OpenAPI (Swagger)
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
 
+    // Environment Variables
+    implementation("me.paulschwarz:spring-dotenv:4.0.0")
+
     // Lombok
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
@@ -66,6 +75,9 @@ dependencies {
     // Test Dependencies
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
+    testImplementation("org.testcontainers:testcontainers:1.19.3")
+    testImplementation("org.testcontainers:mysql:1.19.3")
+    testImplementation("org.testcontainers:junit-jupiter:1.19.3")
 }
 
 tasks.withType<Test> {

@@ -87,3 +87,5 @@ coverage/
 /app/pdfs/
 backend/pdfs/
 *.pdf
+
+/specs/md/*

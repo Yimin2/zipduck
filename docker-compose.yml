@@ -1,102 +1,106 @@
-version: '3.8'
-
 services:
+  # 웹 서버 (리버스 프록시)
   nginx:
-    image: nginx:alpine
+    image: nginx:alpine  # 경량화된 nginx 이미지 사용
     container_name: zipduck-nginx
     ports:
-      - "80:80"
-      - "443:443"
+      - "80:80"    # HTTP 포트
+      - "443:443"  # HTTPS 포트
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./frontend/build:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro  # nginx 설정 파일 (읽기 전용)
+      - ./frontend/build:/usr/share/nginx/html:ro  # 빌드된 프론트엔드 정적 파일
     depends_on:
-      - backend
+      - backend  # 백엔드 서비스가 먼저 시작되어야 함
     networks:
       - zipduck-network
-    restart: unless-stopped
+    restart: unless-stopped  # 컨테이너 자동 재시작 (수동 중지 제외)
 
+  # Spring Boot 백엔드 애플리케이션
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: zipduck-backend
     ports:
-      - "8081:8080"
+      - "8081:8080"  # 호스트:컨테이너 포트 매핑
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/zipduck?useSSL=false&serverTimezone=Asia/Seoul
-      - SPRING_DATASOURCE_USERNAME=zipduck
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
-      - SPRING_DATA_REDIS_HOST=redis
-      - SPRING_DATA_REDIS_PORT=6379
-      - GOOGLE_GEMINI_API_KEY=${GOOGLE_GEMINI_API_KEY}
-      - GOOGLE_VISION_API_KEY=${GOOGLE_VISION_API_KEY}
-      - PUBLIC_DATA_API_KEY=${PUBLIC_DATA_API_KEY}
+      - SPRING_PROFILES_ACTIVE=prod  # 프로덕션 프로파일 활성화
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/zipduck?useSSL=false&serverTimezone=Asia/Seoul  # MySQL 연결 URL
+      - SPRING_DATASOURCE_USERNAME=zipduck  # DB 사용자명
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}  # DB 비밀번호 (.env 파일에서 주입)
+      - SPRING_DATA_REDIS_HOST=redis  # Redis 호스트
+      - SPRING_DATA_REDIS_PORT=6379  # Redis 포트
+      - GOOGLE_GEMINI_API_KEY=${GOOGLE_GEMINI_API_KEY}  # Gemini API 키
+      - GOOGLE_VISION_API_KEY=${GOOGLE_VISION_API_KEY}  # Vision API 키
+      - PUBLIC_DATA_API_KEY=${PUBLIC_DATA_API_KEY}  # 공공데이터 API 키
     depends_on:
       mysql:
-        condition: service_healthy
+        condition: service_healthy  # MySQL이 정상 상태일 때까지 대기
       redis:
-        condition: service_started
+        condition: service_started  # Redis가 시작될 때까지 대기
     networks:
       - zipduck-network
     volumes:
-      - pdf-storage:/app/pdfs
+      - pdf-storage:/app/pdfs  # PDF 저장소 볼륨
     restart: unless-stopped
-    healthcheck:
+    healthcheck:  # 애플리케이션 상태 체크
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      interval: 30s  # 30초마다 체크
+      timeout: 10s  # 10초 타임아웃
+      retries: 3  # 3번 실패 시 unhealthy 상태
+      start_period: 40s  # 시작 후 40초간 유예
 
+  # MySQL 데이터베이스
   mysql:
     image: mysql:8.0
     container_name: zipduck-mysql
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=zipduck
-      - MYSQL_USER=zipduck
-      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}  # root 비밀번호
+      - MYSQL_DATABASE=zipduck  # 기본 데이터베이스 생성
+      - MYSQL_USER=zipduck  # 애플리케이션용 사용자 생성
+      - MYSQL_PASSWORD=${DB_PASSWORD}  # 애플리케이션 사용자 비밀번호
     ports:
-      - "3306:3306"
+      - "3306:3306"  # MySQL 기본 포트
     volumes:
-      - mysql-data:/var/lib/mysql
+      - mysql-data:/var/lib/mysql  # 데이터 영구 저장
     networks:
       - zipduck-network
     restart: unless-stopped
-    healthcheck:
+    healthcheck:  # MySQL 연결 가능 여부 체크
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
-    command: --default-authentication-plugin=mysql_native_password
+    command: --default-authentication-plugin=mysql_native_password  # 기본 인증 플러그인 설정
 
+  # Redis 캐시 서버
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine  # 경량화된 Redis 이미지
     container_name: zipduck-redis
     ports:
-      - "6379:6379"
+      - "6379:6379"  # Redis 기본 포트
     volumes:
-      - redis-data:/data
+      - redis-data:/data  # 데이터 영구 저장
     networks:
       - zipduck-network
     restart: unless-stopped
-    healthcheck:
+    healthcheck:  # Redis 상태 체크
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 3
 
+# 컨테이너 간 통신을 위한 네트워크
 networks:
   zipduck-network:
-    driver: bridge
+    driver: bridge  # 브리지 네트워크 드라이버
 
+# 데이터 영구 저장을 위한 볼륨
 volumes:
-  mysql-data:
+  mysql-data:  # MySQL 데이터
     driver: local
-  redis-data:
+  redis-data:  # Redis 데이터
     driver: local
-  pdf-storage:
+  pdf-storage:  # PDF 파일 저장소
     driver: local
