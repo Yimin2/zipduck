@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.multipart.MultipartException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -128,6 +130,44 @@ public class GlobalExceptionHandler {
 
         log.warn("File upload size exceeded: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(errorResponse);
+    }
+
+    /**
+     * Handle multipart request errors
+     */
+    @ExceptionHandler(MultipartException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ResponseEntity<ErrorResponse> handleMultipartException(
+        MultipartException ex
+    ) {
+        ErrorResponse errorResponse = new ErrorResponse(
+            "INVALID_REQUEST",
+            "파일 업로드 요청이 올바르지 않습니다. Content-Type을 multipart/form-data로 설정해주세요.",
+            LocalDateTime.now(),
+            null
+        );
+
+        log.warn("Multipart request error: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
+     * Handle missing file parameter
+     */
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ResponseEntity<ErrorResponse> handleMissingServletRequestPartException(
+        MissingServletRequestPartException ex
+    ) {
+        ErrorResponse errorResponse = new ErrorResponse(
+            "MISSING_FILE",
+            "파일이 업로드되지 않았습니다. 'file' 파라미터를 확인해주세요.",
+            LocalDateTime.now(),
+            null
+        );
+
+        log.warn("Missing file parameter: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
 
     /**

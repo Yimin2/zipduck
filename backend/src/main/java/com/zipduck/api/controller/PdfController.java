@@ -14,10 +14,12 @@ import com.zipduck.domain.user.User;
 import com.zipduck.domain.user.UserQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -45,25 +47,20 @@ public class PdfController {
 
     // T074: File format and size validation
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-    private static final List<String> ALLOWED_CONTENT_TYPES = Arrays.asList(
-            "application/pdf",
-            "image/jpeg",
-            "image/jpg",
-            "image/png"
-    );
+    private static final List<String> ALLOWED_CONTENT_TYPES = Arrays.asList("application/pdf", "image/jpeg", "image/jpg", "image/png");
 
     /**
      * Upload PDF file for analysis
      * FR-016: PDF upload endpoint
      * T074: File format validation and size limits
      */
-    @PostMapping("/upload")
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Upload PDF for analysis", description = "Upload subscription PDF (max 10MB, PDF/JPEG/PNG)")
     public ResponseEntity<ApiResponse<PdfUploadResponse>> uploadPdf(
-            @Parameter(description = "User ID", required = true)
-            @RequestParam Long userId,
-            @Parameter(description = "PDF file", required = true)
-            @RequestParam("file") MultipartFile file) {
+            @Parameter(description = "User ID", required = true) @RequestParam Long userId,
+            @Parameter(description = "PDF file", required = true, schema = @Schema(type = "string", format = "binary"))
+            @RequestPart("file") MultipartFile file) {
+
 
         log.info("PDF upload request from user: {}, file: {}", userId, file.getOriginalFilename());
 
@@ -73,15 +70,13 @@ public class PdfController {
         }
 
         if (file.getSize() > MAX_FILE_SIZE) {
-            throw new BusinessException("FILE_TOO_LARGE",
-                    String.format("파일 크기가 너무 큽니다 (최대 %dMB)", MAX_FILE_SIZE / (1024 * 1024)));
+            throw new BusinessException("FILE_TOO_LARGE", String.format("파일 크기가 너무 큽니다 (최대 %dMB)", MAX_FILE_SIZE / (1024 * 1024)));
         }
 
         // T074: Validate file format
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase())) {
-            throw new BusinessException("INVALID_FILE_FORMAT",
-                    "지원하지 않는 파일 형식입니다 (PDF, JPEG, PNG만 지원)");
+            throw new BusinessException("INVALID_FILE_FORMAT", "지원하지 않는 파일 형식입니다 (PDF, JPEG, PNG만 지원)");
         }
 
         try {
@@ -111,8 +106,7 @@ public class PdfController {
      */
     @GetMapping("/{pdfId}/status")
     @Operation(summary = "Get PDF processing status", description = "Check the current processing status of uploaded PDF")
-    public ResponseEntity<ApiResponse<PdfStatusResponse>> getPdfStatus(
-            @PathVariable Long pdfId) {
+    public ResponseEntity<ApiResponse<PdfStatusResponse>> getPdfStatus(@PathVariable Long pdfId) {
 
         log.debug("Get PDF status request for ID: {}", pdfId);
 
@@ -139,16 +133,15 @@ public class PdfController {
      */
     @GetMapping("/{pdfId}/analysis")
     @Operation(summary = "Get PDF analysis results", description = "Retrieve detailed analysis results including match score")
-    public ResponseEntity<ApiResponse<PdfAnalysisResponse>> getAnalysisResults(
-            @PathVariable Long pdfId) {
+    public ResponseEntity<ApiResponse<PdfAnalysisResponse>> getAnalysisResults(@PathVariable Long pdfId) {
 
         log.debug("Get PDF analysis request for ID: {}", pdfId);
 
         PdfDocument pdfDocument = pdfQueryService.getById(pdfId);
 
         if (pdfDocument.getStatus() != PdfDocument.ProcessingStatus.COMPLETED) {
-            throw new BusinessException("ANALYSIS_NOT_READY",
-                    "PDF 분석이 아직 완료되지 않았습니다 (현재 상태: " + pdfDocument.getStatus().getKoreanName() + ")");
+            throw new BusinessException("ANALYSIS_NOT_READY", "PDF 분석이 아직 완료되지 않았습니다 (현재 상태: " + pdfDocument.getStatus()
+                    .getKoreanName() + ")");
         }
 
         PdfAnalysisResult analysisResult = pdfQueryService.getAnalysisResultByPdfId(pdfId);

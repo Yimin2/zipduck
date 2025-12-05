@@ -39,7 +39,7 @@ public class PdfDocument extends BaseEntity {
     private String contentType; // MIME type (application/pdf, image/jpeg, etc.)
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "processing_status", nullable = false)
     @Builder.Default
     private ProcessingStatus status = ProcessingStatus.PENDING;
 
