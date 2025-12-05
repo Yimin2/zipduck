@@ -15,7 +15,8 @@
       "WebFetch(domain:www.baeldung.com)",
       "Bash(./gradlew build:*)",
       "Bash(./gradlew compileJava:*)",
-      "Bash(./gradlew bootRun:*)"
+      "Bash(./gradlew bootRun:*)",
+      "Bash(docker exec:*)"
     ],
     "deny": [],
     "ask": []

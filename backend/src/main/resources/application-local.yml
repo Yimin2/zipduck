@@ -1,67 +1,25 @@
-spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/zipduck?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: zipduck
-    password: zipduck_dev
-    driver-class-name: com.mysql.cj.jdbc.Driver
+# 로컬 개발 환경 설정
+# .env 파일의 환경 변수를 자동으로 로드합니다 (spring-dotenv 사용)
+# 로컬 환경에 특화된 설정만 오버라이드합니다
 
+spring:
   jpa:
     hibernate:
-      ddl-auto: validate  # Flyway 사용
-    show-sql: true
+      ddl-auto: validate  # Flyway로 마이그레이션 관리
+    show-sql: ${SPRING_JPA_SHOW_SQL:true}
     properties:
       hibernate:
-        format_sql: true
+        format_sql: ${SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL:true}
         dialect: org.hibernate.dialect.MySQL8Dialect
 
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      password:  # 로컬은 비밀번호 없음
-      timeout: 2000ms
-
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            client-id: ${GOOGLE_CLIENT_ID}
-            client-secret: ${GOOGLE_CLIENT_SECRET}
-            scope: profile, email
-            redirect-uri: "http://localhost:8080/api/v1/oauth2/callback/google"
-          kakao:
-            client-id: ${KAKAO_CLIENT_ID}
-            client-secret: ${KAKAO_CLIENT_SECRET}
-            client-authentication-method: client_secret_post
-            authorization-grant-type: authorization_code
-            redirect-uri: "http://localhost:8080/api/v1/oauth2/callback/kakao"
-            scope: profile_nickname, account_email
-        provider:
-          kakao:
-            authorization-uri: https://kauth.kakao.com/oauth/authorize
-            token-uri: https://kauth.kakao.com/oauth/token
-            user-info-uri: https://kapi.kakao.com/v2/user/me
-            user-name-attribute: id
-
-jwt:
-  secret: ${JWT_SECRET:your-256-bit-secret-key-for-development-only-change-in-production}
-  access-token-expiration: 3600000  # 1시간 (ms)
-  refresh-token-expiration: 604800000  # 7일 (ms)
-
-aws:
-  ses:
-    region: ap-northeast-2
-    from-email: noreply@zipduck.com
-    access-key: ${AWS_ACCESS_KEY}
-    secret-key: ${AWS_SECRET_KEY}
+  # 로컬 환경 로깅 설정
+  devtools:
+    restart:
+      enabled: ${SPRING_DEVTOOLS_RESTART_ENABLED:true}
 
 logging:
   level:
-    com.zipduck: DEBUG
+    com.zipduck: ${LOG_LEVEL:DEBUG}
     org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

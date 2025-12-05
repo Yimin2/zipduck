@@ -7,7 +7,7 @@ spring:
     include: resilience4j  # T109-T110: Enable retry and circuit breaker
 
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:zipduck}?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE:zipduck}
     username: zipduck
     password: ${DB_PASSWORD:zipduck}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -25,10 +25,12 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
+      password: ${REDIS_PASSWORD:}  # 빈 문자열이 기본값 (로컬 개발용)
       timeout: 3000ms
 
   flyway:
+    schemas: zipduck
+    default-schema: zipduck
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration

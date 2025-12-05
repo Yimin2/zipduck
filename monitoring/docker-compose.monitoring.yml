@@ -4,75 +4,81 @@ version: '3.8'
 # Includes Prometheus, Grafana, and Alertmanager
 
 services:
+  # 메트릭 수집 및 시계열 데이터베이스
   prometheus:
     image: prom/prometheus:latest
     container_name: zipduck-prometheus
     ports:
-      - "9090:9090"
+      - "9090:9090"  # Prometheus 웹 UI 포트
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml
-      - prometheus-data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml  # 메트릭 수집 설정
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml  # 알림 규칙 설정
+      - prometheus-data:/prometheus  # 메트릭 데이터 저장소
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
+      - '--config.file=/etc/prometheus/prometheus.yml'  # 설정 파일 경로
+      - '--storage.tsdb.path=/prometheus'  # 시계열 DB 저장 경로
+      - '--storage.tsdb.retention.time=30d'  # 데이터 보관 기간 (30일)
     networks:
       - monitoring-network
     restart: unless-stopped
 
+  # 모니터링 대시보드 및 시각화 도구
   grafana:
     image: grafana/grafana:latest
     container_name: zipduck-grafana
     ports:
-      - "3000:3000"
+      - "3000:3000"  # Grafana 웹 UI 포트
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
-      - GF_INSTALL_PLUGINS=redis-datasource
+      - GF_SECURITY_ADMIN_USER=admin  # 관리자 계정
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}  # 관리자 비밀번호 (기본값: admin)
+      - GF_INSTALL_PLUGINS=redis-datasource  # Redis 데이터소스 플러그인 설치
     volumes:
-      - grafana-data:/var/lib/grafana
-      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+      - grafana-data:/var/lib/grafana  # Grafana 데이터 저장소
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards  # 사전 구성된 대시보드
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources  # 사전 구성된 데이터소스
     networks:
       - monitoring-network
     depends_on:
-      - prometheus
+      - prometheus  # Prometheus가 먼저 시작되어야 함
     restart: unless-stopped
 
+  # 알림 관리 및 라우팅
   alertmanager:
     image: prom/alertmanager:latest
     container_name: zipduck-alertmanager
     ports:
-      - "9093:9093"
+      - "9093:9093"  # Alertmanager 웹 UI 포트
     volumes:
-      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
-      - alertmanager-data:/alertmanager
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml  # 알림 라우팅 설정
+      - alertmanager-data:/alertmanager  # 알림 상태 저장소
     command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
-      - '--storage.path=/alertmanager'
+      - '--config.file=/etc/alertmanager/alertmanager.yml'  # 설정 파일 경로
+      - '--storage.path=/alertmanager'  # 데이터 저장 경로
     networks:
       - monitoring-network
     restart: unless-stopped
 
+  # 시스템 메트릭 수집기 (CPU, 메모리, 디스크 등)
   node-exporter:
     image: prom/node-exporter:latest
     container_name: zipduck-node-exporter
     ports:
-      - "9100:9100"
+      - "9100:9100"  # 메트릭 노출 포트
     command:
-      - '--path.rootfs=/host'
+      - '--path.rootfs=/host'  # 호스트 루트 파일시스템 경로
     volumes:
-      - '/:/host:ro,rslave'
+      - '/:/host:ro,rslave'  # 호스트 루트를 읽기 전용으로 마운트
     networks:
       - monitoring-network
     restart: unless-stopped
 
+# 모니터링 컨테이너 간 통신을 위한 네트워크
 networks:
   monitoring-network:
     driver: bridge
 
+# 모니터링 데이터 영구 저장을 위한 볼륨
 volumes:
-  prometheus-data:
-  grafana-data:
-  alertmanager-data:
+  prometheus-data:  # Prometheus 메트릭 데이터
+  grafana-data:  # Grafana 대시보드 및 설정 데이터
+  alertmanager-data:  # Alertmanager 알림 상태 데이터
