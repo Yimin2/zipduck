@@ -52,6 +52,9 @@ dependencies {
     implementation("com.google.cloud:google-cloud-vision:3.31.0")
     implementation("com.google.cloud:google-cloud-vertexai:1.1.0")
 
+    // PDF Processing
+    implementation("org.apache.pdfbox:pdfbox:3.0.1")
+
     // AWS SES (Email Service)
     implementation("com.amazonaws:aws-java-sdk-ses:1.12.565")
 

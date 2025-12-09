@@ -15,6 +15,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -53,11 +54,54 @@ public class PdfCommandService {
         String uniqueFilename = UUID.randomUUID().toString() + extension;
         Path filePath = uploadPath.resolve(uniqueFilename);
 
-        // Save file
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-        // Generate cache key (SHA-256 hash of file content)
+        // Generate cache key (SHA-256 hash of file content) BEFORE saving file
+        // This allows us to check for duplicates without wasting disk space
         String cacheKey = generateCacheKey(file);
+
+        // Check if this file has already been uploaded and processed
+        // FR-023: Reuse analysis results for duplicate files to save cost and time
+        Optional<PdfDocument> existingDocument = pdfRepository.findByCacheKey(cacheKey);
+
+        if (existingDocument.isPresent()) {
+            PdfDocument existing = existingDocument.get();
+
+            log.info("Duplicate file detected (cache_key: {}). User {} uploading same file as User {}",
+                cacheKey, user.getId(), existing.getUser().getId());
+
+            // Check if same user
+            if (existing.getUser().getId().equals(user.getId())) {
+                log.info("Same user re-uploading file. Returning existing document ID: {}", existing.getId());
+                return existing;
+            } else {
+                // Different user uploaded same file
+                // Create a new record for this user, but link to same cache_key
+                // The analysis will be reused automatically via cache_key matching
+                log.info("Different user uploading same file. Creating new record but will reuse analysis results.");
+
+                // Save file for this user (they get their own copy)
+                Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+                PdfDocument newDocument = PdfDocument.builder()
+                        .user(user)
+                        .fileName(originalFilename)
+                        .filePath(filePath.toString())
+                        .fileSize(file.getSize())
+                        .contentType(file.getContentType())
+                        .status(existing.getStatus()) // Copy status from existing
+                        .cacheKey(cacheKey)
+                        .build();
+
+                // If existing document already has analysis, copy the status
+                if (existing.getStatus() == PdfDocument.ProcessingStatus.COMPLETED) {
+                    log.info("Existing document already processed. New document will share analysis results.");
+                }
+
+                return pdfRepository.save(newDocument);
+            }
+        }
+
+        // New file - save to disk
+        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
         // Create PdfDocument entity
         PdfDocument pdfDocument = PdfDocument.builder()

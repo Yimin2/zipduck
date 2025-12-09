@@ -25,6 +25,16 @@ public class GeminiService {
     public SubscriptionCriteria extractCriteria(String pdfText) {
         log.info("Extracting subscription criteria using Gemini AI");
 
+        // Validate input text
+        if (pdfText == null || pdfText.trim().isEmpty()) {
+            log.error("Cannot extract criteria from empty text");
+            throw new IllegalArgumentException("PDF text is empty. Cannot extract criteria.");
+        }
+
+        if (pdfText.trim().length() < 50) {
+            log.warn("PDF text is very short ({} chars), extraction may be unreliable", pdfText.length());
+        }
+
         String prompt = buildExtractionPrompt(pdfText);
 
         try {
@@ -46,8 +56,8 @@ public class GeminiService {
                 다음은 주택 청약 공고문의 내용입니다. 이 문서에서 자격 조건을 추출해주세요.
 
                 **추출할 정보:**
-                1. 청약명 (분양 단지명)
-                2. 위치/지역
+                1. 청약명 (분양 단지명) - **필수**
+                2. 위치/지역 - **필수** (예: 서울, 경기, 부산 등)
                 3. 주소
                 4. 주택 유형 (아파트, 오피스텔, 빌라 등)
                 5. 나이 제한 (최소 나이, 최대 나이)
@@ -82,6 +92,7 @@ public class GeminiService {
                 ```
 
                 **주의사항:**
+                - subscriptionName과 location은 **반드시** 추출해야 합니다
                 - 명확하지 않은 항목은 null로 표시
                 - 숫자는 반드시 숫자 타입으로
                 - 소득과 가격은 원(KRW) 단위로 변환
@@ -113,7 +124,12 @@ public class GeminiService {
 
         try {
             // Simple JSON parsing (in production, use Jackson ObjectMapper)
-            return parseJsonManually(jsonStr);
+            SubscriptionCriteria criteria = parseJsonManually(jsonStr);
+
+            // Validate and apply defaults for required fields
+            validateAndApplyDefaults(criteria);
+
+            return criteria;
         } catch (Exception e) {
             log.error("Failed to parse Gemini response: {}", response, e);
             throw new RuntimeException("Failed to parse AI response", e);
@@ -168,6 +184,40 @@ public class GeminiService {
         java.util.regex.Pattern p = java.util.regex.Pattern.compile(pattern);
         java.util.regex.Matcher m = p.matcher(json);
         return m.find() ? Long.parseLong(m.group(1)) : null;
+    }
+
+    /**
+     * Validate extracted criteria and apply sensible defaults
+     * Prevents database NOT NULL constraint violations
+     */
+    private void validateAndApplyDefaults(SubscriptionCriteria criteria) {
+        // Required field: subscriptionName
+        if (criteria.subscriptionName == null || criteria.subscriptionName.trim().isEmpty()) {
+            log.warn("Gemini did not extract subscription name, using default");
+            criteria.subscriptionName = "알 수 없는 청약";
+        }
+
+        // Required field: location (NOT NULL in subscriptions table)
+        if (criteria.location == null || criteria.location.trim().isEmpty()) {
+            log.warn("Gemini did not extract location, using default");
+            criteria.location = "미지정";
+        }
+
+        // Required field: housingType
+        if (criteria.housingType == null || criteria.housingType.trim().isEmpty()) {
+            log.warn("Gemini did not extract housing type, using default");
+            criteria.housingType = "기타";
+        }
+
+        // Log validation warnings for missing optional fields
+        int nullFields = 0;
+        if (criteria.minAge == null && criteria.maxAge == null) nullFields++;
+        if (criteria.minIncome == null && criteria.maxIncome == null) nullFields++;
+        if (criteria.minPrice == null && criteria.maxPrice == null) nullFields++;
+
+        if (nullFields > 0) {
+            log.warn("Gemini extraction incomplete: {} criteria groups missing", nullFields);
+        }
     }
 
     /**

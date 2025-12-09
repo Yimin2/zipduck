@@ -40,6 +40,7 @@ public class PdfAnalysisTask {
     private final SubscriptionQueryService subscriptionQueryService;
     private final SubscriptionCommandService subscriptionCommandService;
     private final PdfCacheService pdfCacheService;
+    private final com.zipduck.infrastructure.pdf.PdfTextExtractionService pdfTextExtractionService;
 
     /**
      * Analyze PDF asynchronously
@@ -70,26 +71,44 @@ public class PdfAnalysisTask {
                 return;
             }
 
-            // Step 3: Detect if OCR is needed (FR-033)
-            boolean needsOcr = visionService.detectImageContent(pdfDocument.getFilePath());
-            String extractedText;
+            // Step 3: Try PDF text extraction first (FR-033, FR-034)
+            com.zipduck.infrastructure.pdf.PdfTextExtractionService.PdfTextExtractionResult textResult =
+                    pdfTextExtractionService.extractText(pdfDocument.getFilePath());
 
-            // Step 4: Extract text (with OCR if needed) (FR-034, FR-035)
-            if (needsOcr) {
-                log.info("PDF contains images, performing OCR");
-                extractedText = visionService.performOcr(pdfDocument.getFilePath());
+            String extractedText;
+            String extractionMethod;
+
+            // Step 4: Decide extraction method based on quality (FR-034, FR-035)
+            if (textResult.success && textResult.quality != com.zipduck.infrastructure.pdf.PdfTextExtractionService.QualityLevel.TOO_SHORT) {
+                // Use PDFBox extracted text
+                log.info("Using text extraction: {} chars from {} pages (quality: {})",
+                        textResult.textLength, textResult.pageCount, textResult.quality);
+                extractedText = textResult.extractedText;
+                extractionMethod = "TEXT_EXTRACTION";
+
+                if (textResult.warning != null) {
+                    log.warn("Text extraction quality warning: {}", textResult.warning);
+                }
             } else {
-                log.info("PDF is text-based, extracting directly");
-                extractedText = extractTextFromPdf(pdfDocument.getFilePath());
+                // Fallback to OCR
+                log.info("Text extraction insufficient ({}), falling back to OCR: {}",
+                        textResult.quality, textResult.warning);
+                extractedText = visionService.performOcr(pdfDocument.getFilePath());
+                extractionMethod = "OCR";
             }
 
-            // Step 5: Assess OCR quality if OCR was used (FR-037)
-            String ocrQuality = "HIGH";
-            String ocrWarning = null;
-            if (needsOcr) {
+            // Step 5: Assess quality based on extraction method (FR-037)
+            String ocrQuality;
+            String ocrWarning;
+
+            if ("OCR".equals(extractionMethod)) {
                 VisionService.OcrQualityResult qualityResult = visionService.assessOcrQuality(extractedText);
                 ocrQuality = qualityResult.quality;
                 ocrWarning = qualityResult.warning;
+            } else {
+                // Map text extraction quality to OCR quality format
+                ocrQuality = mapTextQualityToOcrQuality(textResult.quality);
+                ocrWarning = textResult.warning;
             }
 
             // Step 6: Extract criteria using Gemini AI (FR-017)
@@ -135,19 +154,46 @@ public class PdfAnalysisTask {
 
             log.info("PDF analysis completed successfully in {}ms", processingTime);
 
+        } catch (IllegalArgumentException e) {
+            // Validation errors (empty text, invalid input)
+            log.error("PDF analysis validation failed for document ID: {}", pdfDocumentId, e);
+            String userMessage = "PDF 분석 실패: " + e.getMessage();
+            pdfCommandService.markAsFailed(pdfDocumentId, userMessage);
+        } catch (com.zipduck.infrastructure.external.VisionClient.VisionApiException e) {
+            // Vision API errors
+            log.error("Vision API failed for document ID: {}", pdfDocumentId, e);
+            String userMessage = "OCR 처리 실패: 이미지 품질이 낮거나 Vision API 오류가 발생했습니다.";
+            pdfCommandService.markAsFailed(pdfDocumentId, userMessage);
+        } catch (com.zipduck.infrastructure.external.GeminiClient.GeminiApiException e) {
+            // Gemini API errors
+            log.error("Gemini API failed for document ID: {}", pdfDocumentId, e);
+            String userMessage = "AI 분석 실패: Gemini API가 일시적으로 사용 불가능합니다. 잠시 후 다시 시도해주세요.";
+            pdfCommandService.markAsFailed(pdfDocumentId, userMessage);
         } catch (Exception e) {
-            log.error("PDF analysis failed for document ID: {}", pdfDocumentId, e);
-            pdfCommandService.markAsFailed(pdfDocumentId, e.getMessage());
+            // Unexpected errors
+            log.error("Unexpected error during PDF analysis for document ID: {}", pdfDocumentId, e);
+            String userMessage = "PDF 분석 중 예상치 못한 오류가 발생했습니다: " + e.getClass().getSimpleName();
+            pdfCommandService.markAsFailed(pdfDocumentId, userMessage);
         }
     }
 
     /**
-     * Extract text from text-based PDF (simplified - use Apache PDFBox in production)
+     * Map text extraction quality to OCR quality format
      */
-    private String extractTextFromPdf(String filePath) {
-        // Placeholder - in production, use Apache PDFBox or similar
-        log.warn("Text extraction not implemented, returning empty string");
-        return "";
+    private String mapTextQualityToOcrQuality(com.zipduck.infrastructure.pdf.PdfTextExtractionService.QualityLevel quality) {
+        switch (quality) {
+            case HIGH:
+                return "HIGH";
+            case MEDIUM:
+                return "MEDIUM";
+            case LOW:
+            case TOO_SHORT:
+                return "LOW";
+            case FAILED:
+                return "FAILED";
+            default:
+                return "UNKNOWN";
+        }
     }
 
     /**
@@ -170,8 +216,8 @@ public class PdfAnalysisTask {
                 .maxHousingOwned(criteria.maxHousingOwned)
                 .specialQualifications(criteria.specialQualifications)
                 .preferenceCategories(criteria.preferenceCategories)
-                .minPrice(criteria.minPrice)
-                .maxPrice(criteria.maxPrice)
+                .minPrice(criteria.minPrice != null ? criteria.minPrice : 0)
+                .maxPrice(criteria.maxPrice != null ? criteria.maxPrice : 0)
                 .applicationStartDate(LocalDate.now()) // Default
                 .applicationEndDate(parseApplicationEndDate(criteria.applicationPeriod))
                 .dataSource(Subscription.DataSource.PDF_UPLOAD)

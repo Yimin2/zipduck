@@ -84,6 +84,7 @@ public class PdfAnalysisResult extends BaseEntity {
     private String ocrWarning; // Warning message if OCR quality is low
 
     // Raw extracted text (for debugging/reprocessing)
+    @Lob
     @Column(columnDefinition = "TEXT")
     private String extractedText;
 
