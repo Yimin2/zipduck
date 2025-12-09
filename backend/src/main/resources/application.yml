@@ -112,7 +112,7 @@ app:
       model: gemini-2.5-flash
 
   public-data:
-    base-url: https://api.data.go.kr
+    base-url: https://api.odcloud.kr/api
     api-key: ${PUBLIC_DATA_API_KEY:}
 
   pdf:

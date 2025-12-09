@@ -59,7 +59,6 @@ public class PdfTextExtractionService {
 
             // Assess extraction quality
             assessQuality(result);
-
             log.info("Text extraction completed: {} chars extracted from {} pages (quality: {})",
                     result.textLength, result.pageCount, result.quality);
 

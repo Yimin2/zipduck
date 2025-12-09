@@ -11,7 +11,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -60,7 +59,7 @@ public class PublicDataClient {
         try {
             String response = webClient.get()
                 .uri(uriBuilder -> uriBuilder
-                    .path("/ApplyhomeInfoDetailSvc/getAPTLttotPblancDetail")
+                    .path("/ApplyhomeInfoDetailSvc/v1/getAPTLttotPblancDetail")
                     .queryParam("serviceKey", apiKey)
                     .queryParam("pageNo", 1)
                     .queryParam("numOfRows", DEFAULT_PAGE_SIZE)

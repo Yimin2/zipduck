@@ -85,7 +85,7 @@ public class PdfAnalysisResult extends BaseEntity {
 
     // Raw extracted text (for debugging/reprocessing)
     @Lob
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "MEDIUMTEXT")
     private String extractedText;
 
     // AI processing metadata
