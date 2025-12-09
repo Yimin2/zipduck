@@ -88,4 +88,9 @@ coverage/
 backend/pdfs/
 *.pdf
 
+# Google Cloud credentials
+backend/config/*-credentials.json
+*-credentials.json
+service-account*.json
+
 /specs/md/*

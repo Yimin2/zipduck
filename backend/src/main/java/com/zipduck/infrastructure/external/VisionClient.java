@@ -1,5 +1,6 @@
 package com.zipduck.infrastructure.external;
 
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.vision.v1.*;
 import com.google.protobuf.ByteString;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -9,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,14 +20,36 @@ import java.util.List;
 /**
  * Google Vision API Client
  * Handles OCR (Optical Character Recognition) for image-based PDFs and photos
+ *
+ * Authentication: Uses Google Service Account credentials from a JSON file
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class VisionClient {
 
-    @Value("${app.google.vision.api-key}")
-    private String apiKey;
+    @Value("${GOOGLE_APPLICATION_CREDENTIALS:./backend/config/google-vision-credentials.json}")
+    private String credentialsPath;
+
+    /**
+     * Create ImageAnnotatorClient with explicit credentials
+     */
+    private ImageAnnotatorClient createVisionClient() throws IOException {
+        log.debug("Loading Google Vision credentials from: {}", credentialsPath);
+
+        try (FileInputStream credentialsStream = new FileInputStream(credentialsPath)) {
+            GoogleCredentials credentials = GoogleCredentials.fromStream(credentialsStream);
+
+            ImageAnnotatorSettings settings = ImageAnnotatorSettings.newBuilder()
+                    .setCredentialsProvider(() -> credentials)
+                    .build();
+
+            return ImageAnnotatorClient.create(settings);
+        } catch (IOException e) {
+            log.error("Failed to load Google Vision credentials from: {}", credentialsPath, e);
+            throw new IOException("Failed to load Vision API credentials. Please check the credentials file at: " + credentialsPath, e);
+        }
+    }
 
     /**
      * Detect if image content requires OCR processing
@@ -38,7 +62,7 @@ public class VisionClient {
     public boolean detectImageContent(String filePath) {
         log.info("Detecting image content in file: {}", filePath);
 
-        try (ImageAnnotatorClient vision = ImageAnnotatorClient.create()) {
+        try (ImageAnnotatorClient vision = createVisionClient()) {
             ByteString imgBytes = ByteString.readFrom(Files.newInputStream(Path.of(filePath)));
 
             Image img = Image.newBuilder().setContent(imgBytes).build();
@@ -87,7 +111,7 @@ public class VisionClient {
     public String performOcr(String filePath) {
         log.info("Performing OCR on file: {}", filePath);
 
-        try (ImageAnnotatorClient vision = ImageAnnotatorClient.create()) {
+        try (ImageAnnotatorClient vision = createVisionClient()) {
             ByteString imgBytes = ByteString.readFrom(Files.newInputStream(Path.of(filePath)));
 
             Image img = Image.newBuilder().setContent(imgBytes).build();

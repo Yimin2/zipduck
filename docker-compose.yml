@@ -31,7 +31,7 @@ services:
       - SPRING_DATA_REDIS_HOST=redis  # Redis 호스트
       - SPRING_DATA_REDIS_PORT=6379  # Redis 포트
       - GOOGLE_GEMINI_API_KEY=${GOOGLE_GEMINI_API_KEY}  # Gemini API 키
-      - GOOGLE_VISION_API_KEY=${GOOGLE_VISION_API_KEY}  # Vision API 키
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/config/google-vision-credentials.json  # Vision API Service Account
       - PUBLIC_DATA_API_KEY=${PUBLIC_DATA_API_KEY}  # 공공데이터 API 키
     depends_on:
       mysql:
@@ -42,6 +42,7 @@ services:
       - zipduck-network
     volumes:
       - pdf-storage:/app/pdfs  # PDF 저장소 볼륨
+      - ./backend/config/google-vision-credentials.json:/app/config/google-vision-credentials.json:ro  # Vision API credentials (읽기 전용)
     restart: unless-stopped
     healthcheck:  # 애플리케이션 상태 체크
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]

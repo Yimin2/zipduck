@@ -110,8 +110,6 @@ app:
     gemini:
       api-key: ${GOOGLE_GEMINI_API_KEY:}
       model: gemini-2.5-flash
-    vision:
-      api-key: ${GOOGLE_VISION_API_KEY:}
 
   public-data:
     base-url: https://api.data.go.kr
