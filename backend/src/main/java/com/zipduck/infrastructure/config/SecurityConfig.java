@@ -57,7 +57,8 @@ public class SecurityConfig {
                     "/api/v1/auth/login",
                     "/api/v1/auth/refresh",
                     "/api/v1/oauth2/authorize/**",
-                    "/api/v1/oauth2/callback/**"
+                    "/api/v1/oauth2/callback/**",
+                    "/api/public-data/**"
                 ).permitAll()
                 // All other endpoints require authentication
                 .anyRequest().authenticated()

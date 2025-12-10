@@ -110,8 +110,6 @@ public class PublicDataCollector {
                 .location(location)
                 .address(dto.getLocation())
                 .housingType(housingType)
-                .minPrice(dto.getMinPrice())
-                .maxPrice(dto.getMaxPrice())
                 .applicationStartDate(dto.getApplicationStartDate())
                 .applicationEndDate(dto.getApplicationEndDate())
                 .dataSource(Subscription.DataSource.PUBLIC_DB)
