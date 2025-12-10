@@ -124,22 +124,21 @@ public class PublicDataClient {
     private List<PublicSubscriptionDto> parseSubscriptionResponse(String response) {
         try {
             JsonNode rootNode = objectMapper.readTree(response);
-            JsonNode responseNode = rootNode.path("response");
-            JsonNode bodyNode = responseNode.path("body");
-            JsonNode itemsNode = bodyNode.path("items");
-            JsonNode itemNode = itemsNode.path("item");
+
+            // ODCloud API 응답 구조: { "data": [...], "currentCount": 10, "totalCount": 2604 }
+            JsonNode dataNode = rootNode.path("data");
 
             List<PublicSubscriptionDto> subscriptions = new ArrayList<>();
 
-            if (itemNode.isArray()) {
-                for (JsonNode item : itemNode) {
+            if (dataNode.isArray()) {
+                for (JsonNode item : dataNode) {
                     subscriptions.add(parseSubscriptionItem(item));
                 }
-            } else if (!itemNode.isMissingNode()) {
-                subscriptions.add(parseSubscriptionItem(itemNode));
+            } else if (!dataNode.isMissingNode()) {
+                subscriptions.add(parseSubscriptionItem(dataNode));
             }
 
-            log.info("청약 정보 {} 건 파싱 완료", subscriptions.size());
+            log.info("청약 정보 {} 건 파싱 완료 (전체: {}건)", subscriptions.size(), rootNode.path("totalCount").asInt(0));
             return subscriptions;
         } catch (Exception e) {
             log.error("API 응답 파싱 실패: {}", e.getMessage(), e);

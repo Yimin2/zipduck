@@ -94,3 +94,5 @@ backend/config/*-credentials.json
 service-account*.json
 
 /specs/md/*
+
+CLAUDE.md
